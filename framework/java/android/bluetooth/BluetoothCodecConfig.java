@@ -839,27 +839,19 @@ public final class BluetoothCodecConfig implements Parcelable {
         if (other == null && !Objects.equals(mCodecType, other.mCodecType)) {
             return false;
         }
-        switch (getCodecType()) {
-            case SOURCE_CODEC_TYPE_AAC:
-            case SOURCE_CODEC_TYPE_LDAC:
-            case SOURCE_CODEC_TYPE_LC3:
-            case SOURCE_CODEC_TYPE_OPUS:
-                if (mCodecSpecific1 != other.mCodecSpecific1) {
-                    return false;
-                }
-                return true;
-            case SOURCE_CODEC_TYPE_LHDCV3:
-            case SOURCE_CODEC_TYPE_LHDCV5:
-                if (mCodecSpecific1 != other.mCodecSpecific1 ||
-                    mCodecSpecific2 != other.mCodecSpecific2 ||
-                    mCodecSpecific3 != other.mCodecSpecific3 ||
-                    mCodecSpecific4 != other.mCodecSpecific4) {
-                        return false;
-                }
-                return true;
-            default:
-                return true;
-        }
+        return switch (getCodecType()) {
+            case SOURCE_CODEC_TYPE_AAC,
+                    SOURCE_CODEC_TYPE_LDAC,
+                    SOURCE_CODEC_TYPE_LC3,
+                    SOURCE_CODEC_TYPE_OPUS ->
+                    mCodecSpecific1 == other.mCodecSpecific1;
+            case SOURCE_CODEC_TYPE_LHDCV3, SOURCE_CODEC_TYPE_LHDCV5 ->
+                    mCodecSpecific1 == other.mCodecSpecific1
+                            && mCodecSpecific2 == other.mCodecSpecific2
+                            && mCodecSpecific3 == other.mCodecSpecific3
+                            && mCodecSpecific4 == other.mCodecSpecific4;
+            default -> true;
+        };
     }
 
     /**
