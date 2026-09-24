@@ -168,6 +168,12 @@ enum tA2DP_STATUS : uint8_t {
   A2DP_INVALID_CP_FORMAT = 0xE1,
   A2DP_INVALID_CODEC_PARAMETER = 0xE2,
   A2DP_NOT_SUPPORTED_CODEC_PARAMETER = 0xE3,
+
+// Savitech LHDC (5.2.5ST, AOSP15 layout)
+enum : uint64_t {
+  A2DP_CODEC_ID_LHDCV3 = 0x334c3a05ff,
+  A2DP_CODEC_ID_LHDCV5 = 0x354c3a05ff,
+};
 };
 
 namespace std {
