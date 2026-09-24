@@ -626,7 +626,7 @@ bool A2DP_VendorCodecEqualsLhdcV3(const uint8_t* p_codec_info_a,
       (lhdc_cie_a.isLLSupported == lhdc_cie_b.isLLSupported);
 }
 
-int A2DP_VendorGetBitRateLhdcV3(const uint8_t* p_codec_info) {
+int A2DP_VendorGetBitRateLhdcV3(const uint8_t*) {
 
   A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
   btav_a2dp_codec_config_t codec_config_ = current_codec->getCodecConfig();
