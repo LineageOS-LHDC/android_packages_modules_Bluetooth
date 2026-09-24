@@ -35,7 +35,6 @@
 #include "btif/include/btif_av_co.h"
 #include "internal_include/bt_trace.h"
 
-#include "os/log.h"
 #include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 
@@ -148,7 +147,6 @@ static const tA2DP_LHDCV5_CIE a2dp_lhdcv5_source_default_caps = {
 //
 typedef struct {
   btav_a2dp_codec_config_t *_codec_config_;
-  btav_a2dp_codec_config_t *_codec_capability_;
   btav_a2dp_codec_config_t *_codec_local_capability_;
   btav_a2dp_codec_config_t *_codec_selectable_capability_;
   btav_a2dp_codec_config_t *_codec_user_config_;
@@ -332,9 +330,6 @@ static void A2DP_UpdateFeatureToSpecLhdcV5(tA2DP_CODEC_CONFIGS_PACK* cfgsPtr,
   if (toCodecCfg & A2DP_LHDC_TO_A2DP_CODEC_CONFIG_) {
     LHDC_SETUP_A2DP_SPEC(cfgsPtr->_codec_config_, toSpec, hasFeature, value);
   }
-  if (toCodecCfg & A2DP_LHDC_TO_A2DP_CODEC_CAP_) {
-    LHDC_SETUP_A2DP_SPEC(cfgsPtr->_codec_capability_, toSpec, hasFeature, value);
-  }
   if (toCodecCfg & A2DP_LHDC_TO_A2DP_CODEC_LOCAL_CAP_) {
     LHDC_SETUP_A2DP_SPEC(cfgsPtr->_codec_local_capability_, toSpec, hasFeature, value);
   }
@@ -429,7 +424,7 @@ static tA2DP_STATUS A2DP_BuildInfoLhdcV5(uint8_t media_type,
 
   if (p_ie == nullptr || p_result == nullptr) {
     log::error( ": nullptr input");
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
 
   *p_result++ = A2DP_LHDCV5_CODEC_LEN;  //H0
@@ -450,7 +445,7 @@ static tA2DP_STATUS A2DP_BuildInfoLhdcV5(uint8_t media_type,
     para |= (p_ie->sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_MASK);
   } else {
     log::error( ": invalid sample rate (0x{:02x})",  p_ie->sampleRate);
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
   // update P6
   *p_result++ = para; para = 0;
@@ -460,7 +455,7 @@ static tA2DP_STATUS A2DP_BuildInfoLhdcV5(uint8_t media_type,
     para |= (p_ie->bitsPerSample & A2DP_LHDCV5_BIT_FMT_MASK);
   } else {
     log::error( ": invalid bits per sample (0x{:02x})",  p_ie->bitsPerSample);
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
   // P7[5:4] Max Target Bit Rate
   para |= (p_ie->maxTargetBitrate & A2DP_LHDCV5_MAX_BIT_RATE_MASK);
@@ -474,14 +469,14 @@ static tA2DP_STATUS A2DP_BuildInfoLhdcV5(uint8_t media_type,
     para = para | (p_ie->version & A2DP_LHDCV5_VERSION_MASK);
   } else {
     log::error( ": invalid codec subversion (0x{:02x})",  p_ie->version);
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
   // P8[5:4] Frame Length Type
   if ((p_ie->frameLenType & A2DP_LHDCV5_FRAME_LEN_MASK) != A2DP_LHDCV5_FRAME_LEN_NS) {
     para = para | (p_ie->frameLenType & A2DP_LHDCV5_FRAME_LEN_MASK);
   } else {
     log::error( ": invalid frame length type (0x{:02x})",  p_ie->frameLenType);
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
   // update P8
   *p_result++ = para; para = 0;
@@ -551,24 +546,24 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
 
   if (p_ie == nullptr || p_codec_info == nullptr) {
     log::error( ": nullptr input");
-    return A2DP_INVALID_PARAMS;
+    return A2DP_FAIL;
   }
 
   // Codec capability length
   losc = *p_codec_info++;
   if (losc != A2DP_LHDCV5_CODEC_LEN) {
     log::error( ": wrong length {}",  losc);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
 
   media_type = (*p_codec_info++) >> 4;
-  codec_type = *p_codec_info++;
+  codec_type = (tA2DP_CODEC_TYPE)*p_codec_info++;
 
   // Media Type and Media Codec Type
   if (media_type != AVDT_MEDIA_TYPE_AUDIO ||
       codec_type != A2DP_MEDIA_CT_NON_A2DP) {
     log::error( ": invalid media type 0x{:02x} codec_type 0x{:02x}",  media_type, codec_type);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
 
   // Vendor ID(P0-P3) and Codec ID(P4-P5)
@@ -583,14 +578,14 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
       p_ie->codecId != A2DP_LHDCV5_CODEC_ID) {
     log::error( ": invalid vendorId 0x{:02x} codecId 0x{:02x}",
         p_ie->vendorId, p_ie->codecId);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
 
   // P6[5:0] Sampling Frequency
   p_ie->sampleRate = (*p_codec_info & A2DP_LHDCV5_SAMPLING_FREQ_MASK);
   if (p_ie->sampleRate == A2DP_LHDCV5_SAMPLING_FREQ_NS) {
     log::error( ": invalid sample rate 0x{:02x}",  p_ie->sampleRate);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
   p_codec_info += 1;
 
@@ -598,7 +593,7 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
   p_ie->bitsPerSample = (*p_codec_info & A2DP_LHDCV5_BIT_FMT_MASK);
   if (p_ie->bitsPerSample == A2DP_LHDCV5_BIT_FMT_NS) {
     log::error( ": invalid bit per sample 0x{:02x}",  p_ie->bitsPerSample);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
   // P7[5:4] Max Target Bit Rate
   p_ie->maxTargetBitrate = (*p_codec_info & A2DP_LHDCV5_MAX_BIT_RATE_MASK);
@@ -613,18 +608,18 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
   p_ie->version = (*p_codec_info & A2DP_LHDCV5_VERSION_MASK);
   if (p_ie->version == A2DP_LHDCV5_VER_NS) {
     log::error( ": invalid version 0x{:02x}",  p_ie->version);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   } else {
     if (!is_codec_version_supported(p_ie->version)) {
       log::error( ": unsupported version 0x{:02x}",  p_ie->version);
-      return A2DP_WRONG_CODEC;
+      return A2DP_FAIL;
     }
   }
   // P8[5:4] Frame Length Type
   p_ie->frameLenType = (*p_codec_info & A2DP_LHDCV5_FRAME_LEN_MASK);
   if (p_ie->frameLenType == A2DP_LHDCV5_FRAME_LEN_NS) {
     log::error( ": invalid frame length mode 0x{:02x}",  p_ie->frameLenType);
-    return A2DP_WRONG_CODEC;
+    return A2DP_FAIL;
   }
   p_codec_info += 1;
 
@@ -1245,8 +1240,6 @@ A2dpCodecConfigLhdcV5Source::A2dpCodecConfigLhdcV5Source(
 A2dpCodecConfigLhdcV5Source::~A2dpCodecConfigLhdcV5Source() {}
 
 bool A2dpCodecConfigLhdcV5Source::init() {
-  if (!isValid()) return false;
-
   // Load the encoder
   if (!A2DP_VendorLoadEncoderLhdcV5()) {
     log::error( ": cannot load the encoder");
@@ -1575,7 +1568,7 @@ static std::string lhdcV5_QualityModeBitRate_toString(uint8_t value) {
 }
 
 
-bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
+tA2DP_STATUS A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     bool is_capability,
     uint8_t* p_result_codec_config) {
   std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
@@ -1593,7 +1586,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;
-  btav_a2dp_codec_config_t saved_codec_capability = codec_capability_;
   btav_a2dp_codec_config_t saved_codec_selectable_capability =
       codec_selectable_capability_;
   btav_a2dp_codec_config_t saved_codec_user_config = codec_user_config_;
@@ -1609,7 +1601,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
 
   tA2DP_CODEC_CONFIGS_PACK allCfgPack;
   allCfgPack._codec_config_ = &codec_config_;
-  allCfgPack._codec_capability_ = &codec_capability_;
   allCfgPack._codec_local_capability_ = &codec_local_capability_;
   allCfgPack._codec_selectable_capability_ = &codec_selectable_capability_;
   allCfgPack._codec_user_config_ = &codec_user_config_;
@@ -1648,28 +1639,24 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
     if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_44100) {
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_44100;
-      codec_capability_.sample_rate = codec_user_config_.sample_rate;
       codec_config_.sample_rate = codec_user_config_.sample_rate;
     }
     break;
   case BTAV_A2DP_CODEC_SAMPLE_RATE_48000:
     if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_48000) {
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
-      codec_capability_.sample_rate = codec_user_config_.sample_rate;
       codec_config_.sample_rate = codec_user_config_.sample_rate;
     }
     break;
   case BTAV_A2DP_CODEC_SAMPLE_RATE_96000:
     if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_96000) {
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_96000;
-      codec_capability_.sample_rate = codec_user_config_.sample_rate;
       codec_config_.sample_rate = codec_user_config_.sample_rate;
     }
     break;
   case BTAV_A2DP_CODEC_SAMPLE_RATE_192000:
     if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_192000) {
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_192000;
-      codec_capability_.sample_rate = codec_user_config_.sample_rate;
       codec_config_.sample_rate = codec_user_config_.sample_rate;
     }
     break;
@@ -1678,7 +1665,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   case BTAV_A2DP_CODEC_SAMPLE_RATE_88200:
   case BTAV_A2DP_CODEC_SAMPLE_RATE_176400:
   case BTAV_A2DP_CODEC_SAMPLE_RATE_NONE:
-    codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
     codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
     break;
   }
@@ -1702,15 +1688,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     }
     // Ignore follows if codec config is setup, otherwise pick a best one from default rules
 
-    // Compute the common capability
-    if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_44100)
-      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
-    if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_48000)
-      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-    if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_96000)
-      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_96000;
-    if (sampleRate & A2DP_LHDCV5_SAMPLING_FREQ_192000)
-      codec_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_192000;
 
     // No user preference - try the codec audio config
     if (select_audio_sample_rate(&codec_audio_config_, sampleRate,
@@ -1763,27 +1740,23 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
     if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_16) {
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_16;
-      codec_capability_.bits_per_sample = codec_user_config_.bits_per_sample;
       codec_config_.bits_per_sample = codec_user_config_.bits_per_sample;
     }
     break;
   case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24:
     if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_24) {
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_24;
-      codec_capability_.bits_per_sample = codec_user_config_.bits_per_sample;
       codec_config_.bits_per_sample = codec_user_config_.bits_per_sample;
     }
     break;
   case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32:
     if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_32) {
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_32;
-      codec_capability_.bits_per_sample = codec_user_config_.bits_per_sample;
       codec_config_.bits_per_sample = codec_user_config_.bits_per_sample;
     }
     break;
   case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE:
     result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_NS;
-    codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE;
     codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE;
     break;
   }
@@ -1805,13 +1778,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     }
     // Ignore follows if codec config is setup, otherwise pick a best one from default rules
 
-    // Compute the common capability
-    if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_16)
-      codec_capability_.bits_per_sample |= BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
-    if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_24)
-      codec_capability_.bits_per_sample |= BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-    if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_32)
-      codec_capability_.bits_per_sample |= BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32;
 
     // No user preference - the the codec audio config
     if (select_audio_bits_per_sample(&codec_audio_config_, bitsPerSample,
@@ -1855,7 +1821,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   // Select the channel mode
   codec_user_config_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   codec_selectable_capability_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
-  codec_capability_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   codec_config_.channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   log::info( ": channelMode = Only supported stereo");
 
@@ -1955,7 +1920,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_JAS,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
             false);
     // update
@@ -1964,7 +1929,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_JAS,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
     }
@@ -1986,7 +1951,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_AR,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
         false);
     // update
@@ -1998,7 +1963,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_AR,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
     }
@@ -2021,7 +1986,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_META,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
         false);
     // update
@@ -2030,7 +1995,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_META,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
     }
@@ -2052,7 +2017,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_LL,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
         false);
     // update
@@ -2061,7 +2026,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_LL,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
     }
@@ -2086,7 +2051,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_LLESS,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
         false);
 
@@ -2096,7 +2061,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_LLESS,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
 
@@ -2131,7 +2096,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     A2DP_UpdateFeatureToA2dpConfigLhdcV5(
         &allCfgPack,
         LHDCV5_FEATURE_CODE_LLESS_RAW,
-        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ | A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+        (A2DP_LHDC_TO_A2DP_CODEC_CONFIG_ |
             A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
         false);
 
@@ -2141,7 +2106,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_LLESS_RAW,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               true);
     }
@@ -2231,7 +2196,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_LLESS,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               false);
       result_config_cie.hasFeatureLLESS48K = false;
@@ -2241,7 +2206,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_LLESS_RAW,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               false);
       result_config_cie.hasFeatureLLESSRaw = false;
@@ -2254,7 +2219,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       A2DP_UpdateFeatureToA2dpConfigLhdcV5(
           &allCfgPack,
           LHDCV5_FEATURE_CODE_AR,
-          (A2DP_LHDC_TO_A2DP_CODEC_CAP_ |
+          (
               A2DP_LHDC_TO_A2DP_CODEC_SELECT_CAP_ | A2DP_LHDC_TO_A2DP_CODEC_USER_),
               false);
     }
@@ -2267,7 +2232,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     // set (48KHz sample rate) when AR
     if (codec_user_config_.sample_rate != BTAV_A2DP_CODEC_SAMPLE_RATE_48000) {
       codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-      codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
       codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
       log::info( ": set 48KHz sample Rate for running AR");
@@ -2282,7 +2246,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       if (result_config_cie.hasFeatureLLESS96K == false) {
         // only have capability of 48KHz lossless raw mode (not have 96KHz lossless)
         codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-        codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
         codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
         result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
         log::info( ": (lossless raw) set 48KHz sample rate");
@@ -2292,7 +2255,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
             codec_user_config_.sample_rate != BTAV_A2DP_CODEC_SAMPLE_RATE_96000) {
           //  => set default 48KHz when user-configured sample rate is not supported
           codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-          codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
           codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
           result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
           log::info( ": (lossless raw) default 48KHz sample rate");
@@ -2309,7 +2271,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
         // only have capability of 48KHz lossless (not have 96KHz lossless)
         //   => fixed 48KHz
         codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-        codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
         codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
         result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
         log::info( ": (lossless) fixed 48KHz sample rate");
@@ -2320,7 +2281,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
             codec_user_config_.sample_rate != BTAV_A2DP_CODEC_SAMPLE_RATE_96000) {
           //  => set default 48KHz when user-configured sample rate is not supported
           codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-          codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
           codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
           result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
           log::info( ": (lossless) default 48KHz sample rate");
@@ -2344,7 +2304,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     if (codec_user_config_.bits_per_sample != BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 &&
         codec_user_config_.bits_per_sample != BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24) {
       codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-      codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
       codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_24;
       log::info( ": set 24 bits per sample for running AR");
@@ -2361,14 +2320,12 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
         if (bitsPerSample & A2DP_LHDCV5_BIT_FMT_24) {
           // unsupported bitrate, use 24bit as default
           codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-          codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
           codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
           result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_24;
           log::info( ": (lossless-24bit): use default 24 mode");
         } else {
           // unsupported bitrate, use 16bit as default
           codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
-          codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
           codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
           result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_16;
           log::info( ": (lossless-24bit): use default 16 bit mode");
@@ -2384,7 +2341,6 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
     } else {
       // hasFeatureLLESS24Bit not supported, always use 16bit
       codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
-      codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
       codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_16;
       log::info( ": (lossless-16bit): 16 bit mode only");
@@ -2402,19 +2358,16 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
         log::info( ": (lossless 96KHz) : 24bit OK");
       } else {
         codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-        codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
         codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
         result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_24;
         log::info( ": (lossless 96KHz) : unsupported bit depth but 24bit capable, reconfigure to 24bit");
       }
     } else {
       codec_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-      codec_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
       codec_user_config_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
       result_config_cie.sampleRate = A2DP_LHDCV5_SAMPLING_FREQ_48000;
 
       codec_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
-      codec_capability_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
       codec_user_config_.bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16;
       result_config_cie.bitsPerSample = A2DP_LHDCV5_BIT_FMT_16;
       log::info( ": (lossless 96KHz) : 16 and 24bit not capable, reconfigure to 48KHz 16bit");
@@ -2527,12 +2480,11 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   status = A2DP_BuildInfoLhdcV5(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie,
       ota_codec_config_);
   CHECK(status == A2DP_SUCCESS);
-  return true;
+  return A2DP_SUCCESS;
 
   fail:
   // Restore the internal state
   codec_config_ = saved_codec_config;
-  codec_capability_ = saved_codec_capability;
   codec_selectable_capability_ = saved_codec_selectable_capability;
   codec_user_config_ = saved_codec_user_config;
   codec_audio_config_ = saved_codec_audio_config;
@@ -2541,7 +2493,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
       sizeof(ota_codec_peer_capability_));
   memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config,
       sizeof(ota_codec_peer_config_));
-  return false;
+  return A2DP_FAIL;
 }
 
 bool A2dpCodecConfigLhdcV5Base::setPeerCodecCapabilities(

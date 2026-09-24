@@ -38,7 +38,6 @@
 #include "stack/include/bt_hdr.h"
 #include "osi/include/osi.h"
 #include <bluetooth/log.h>
-#include "os/log.h"
 using namespace bluetooth;
 
 
