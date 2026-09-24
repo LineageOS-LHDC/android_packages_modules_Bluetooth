@@ -36,7 +36,6 @@
 #include "a2dp_vendor_ldac_constants.h"
 #include "a2dp_vendor_opus.h"
 #include "a2dp_vendor_lhdcv3.h"
-#include "a2dp_vendor_lhdcv3_dec.h"
 #include "a2dp_vendor_lhdcv5.h"
 #include "a2dp_vendor_opus_constants.h"
 #include "avdt_api.h"
@@ -101,15 +100,7 @@ bool A2DP_IsVendorPeerSourceCodecValid(const uint8_t* p_codec_info) {
     return A2DP_IsCodecValidOpus(p_codec_info);
   }
 
-  // Check for Savitech LHDCV3 Sink
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV3_CODEC_ID) {
-    return A2DP_IsVendorPeerSourceCodecValidLhdcV3(p_codec_info);
-  }
 
-  // Check for Savitech LHDCV5 Sink
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV5_CODEC_ID) {
-    return A2DP_IsVendorPeerSourceCodecValidLhdcV5(p_codec_info);
-  }
 
   return false;
 }
@@ -167,15 +158,7 @@ tA2DP_STATUS A2DP_IsVendorSinkCodecSupported(const uint8_t* p_codec_info) {
     return A2DP_IsVendorSinkCodecSupportedOpus(p_codec_info);
   }
 
-  // Check for Savitech LHDCV3 Sink
-  else if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV3_CODEC_ID) {
-    return A2DP_IsVendorSinkCodecSupportedLhdcV3(p_codec_info);
-  }
 
-  // Check for Savitech LHDCV5 Sink
-  else if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV5_CODEC_ID) {
-    return A2DP_IsVendorSinkCodecSupportedLhdcV5(p_codec_info);
-  }
 
   return A2DP_NOT_SUPPORTED_CODEC_TYPE;
 }
@@ -361,15 +344,7 @@ int A2DP_VendorGetSinkTrackChannelType(const uint8_t* p_codec_info) {
     return A2DP_VendorGetSinkTrackChannelTypeOpus(p_codec_info);
   }
 
-  // Check for Savitech LHDC V3
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV3_CODEC_ID) {
-    return A2DP_VendorGetSinkTrackChannelTypeLhdcV3(p_codec_info);
-  }
 
-  // Check for Savitech LHDC V5
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV5_CODEC_ID) {
-    return A2DP_VendorGetSinkTrackChannelTypeLhdcV5(p_codec_info);
-  }
   return -1;
 }
 
@@ -464,15 +439,7 @@ const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterface(const uint8_t* p_c
     return A2DP_VendorGetDecoderInterfaceOpus(p_codec_info);
   }
 
-  // Check for Savitech LHDCV3 Sink
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV3_CODEC_ID) {
-    return A2DP_VendorGetDecoderInterfaceLhdcV3(p_codec_info);
-  }
 
-  // Check for Savitech LHDCV5 Sink
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV5_CODEC_ID) {
-    return A2DP_VendorGetDecoderInterfaceLhdcV5(p_codec_info);
-  }
   return NULL;
 }
 
@@ -566,15 +533,7 @@ btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndex(const uint8_t* p_codec_info) {
     return A2DP_VendorSinkCodecIndexOpus(p_codec_info);
   }
 
-  // Check for Savitech LHDC V3
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV3_CODEC_ID) {
-    return A2DP_VendorSinkCodecIndexLhdcV3(p_codec_info);
-  }
 
-  // Check for Savitech LHDC V5
-  if (vendor_id == A2DP_LHDC_VENDOR_ID && codec_id == A2DP_LHDCV5_CODEC_ID) {
-    return A2DP_VendorSinkCodecIndexLhdcV5(p_codec_info);
-  }
 
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
@@ -603,10 +562,6 @@ const char* A2DP_VendorCodecIndexStr(btav_a2dp_codec_index_t codec_index) {
       return A2DP_VendorCodecIndexStrLhdcV3();
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LHDCV5:
       return A2DP_VendorCodecIndexStrLhdcV5();
-    case BTAV_A2DP_CODEC_INDEX_SINK_LHDCV3:
-      return A2DP_VendorCodecIndexStrLhdcV3Sink();
-    case BTAV_A2DP_CODEC_INDEX_SINK_LHDCV5:
-      return A2DP_VendorCodecIndexStrLhdcV5Sink();
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
       break;
@@ -642,10 +597,6 @@ bool A2DP_VendorInitCodecConfig(btav_a2dp_codec_index_t codec_index, AvdtpSepCon
       return A2DP_VendorInitCodecConfigLhdcV3(p_cfg);
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LHDCV5:
       return A2DP_VendorInitCodecConfigLhdcV5(p_cfg);
-    case BTAV_A2DP_CODEC_INDEX_SINK_LHDCV3:
-      return A2DP_VendorInitCodecConfigLhdcV3Sink(p_cfg);
-    case BTAV_A2DP_CODEC_INDEX_SINK_LHDCV5:
-      return A2DP_VendorInitCodecConfigLhdcV5Sink(p_cfg);
     // Add a switch statement for each vendor-specific codec
     case BTAV_A2DP_CODEC_INDEX_MAX:
       break;

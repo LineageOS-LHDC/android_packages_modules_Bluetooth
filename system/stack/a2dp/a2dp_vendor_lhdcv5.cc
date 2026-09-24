@@ -31,7 +31,6 @@
 
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_lhdcv5_encoder.h"
-#include "a2dp_vendor_lhdcv5_decoder.h"
 
 #include "btif/include/btif_av_co.h"
 #include "internal_include/bt_trace.h"
@@ -108,82 +107,6 @@ static const tA2DP_LHDCV5_CIE a2dp_lhdcv5_source_caps = {
 
 // default source capabilities for best select
 static const tA2DP_LHDCV5_CIE a2dp_lhdcv5_source_default_caps = {
-    A2DP_LHDC_VENDOR_ID,  // vendorId
-    A2DP_LHDCV5_CODEC_ID, // codecId
-    // Sampling Frequency
-    A2DP_LHDCV5_SAMPLING_FREQ_48000,
-    // Bits Per Sample
-    A2DP_LHDCV5_BIT_FMT_24,
-    // Channel Mode
-    A2DP_LHDCV5_CHANNEL_MODE_STEREO,
-    // Codec Version Number
-    A2DP_LHDCV5_VER_1,
-    // Encoded Frame Length
-    A2DP_LHDCV5_FRAME_LEN_5MS,
-    // Max Target Bit Rate Type
-    A2DP_LHDCV5_MAX_BIT_RATE_1000K,
-    // Min Target Bit Rate Type
-    A2DP_LHDCV5_MIN_BIT_RATE_64K,
-    // FeatureSupported: AR
-    false,
-    // FeatureSupported: JAS
-    false,
-    // FeatureSupported: META
-    false,
-    // FeatureSupported: Low Latency
-    true,
-    // FeatureSupported: Lossless (standard 48 KHz)
-    false,
-    // Lossless extended configurable: 24 bit-per-sample
-    false,
-    // Lossless extended configurable: 96 KHz
-    false,
-#ifdef LHDC_LOSSLESS_RAW_SUPPORT
-    // FeatureSupported: Lossless Raw mode (standard 48 KHz)
-    false,
-#endif
-};
-
-// sink capabilities
-static const tA2DP_LHDCV5_CIE a2dp_lhdcv5_sink_caps = {
-    A2DP_LHDC_VENDOR_ID,  // vendorId
-    A2DP_LHDCV5_CODEC_ID, // codecId
-    // Sampling Frequency
-    (A2DP_LHDCV5_SAMPLING_FREQ_44100 | A2DP_LHDCV5_SAMPLING_FREQ_48000 | A2DP_LHDCV5_SAMPLING_FREQ_96000 | A2DP_LHDCV5_SAMPLING_FREQ_192000),
-    // Bits Per Sample
-    (A2DP_LHDCV5_BIT_FMT_16 | A2DP_LHDCV5_BIT_FMT_24 | A2DP_LHDCV5_BIT_FMT_32),
-    // Channel Mode
-    A2DP_LHDCV5_CHANNEL_MODE_STEREO,
-    // Codec Version Number
-    A2DP_LHDCV5_VER_1,
-    // Encoded Frame Length
-    A2DP_LHDCV5_FRAME_LEN_5MS,
-    // Max Target Bit Rate Type
-    A2DP_LHDCV5_MAX_BIT_RATE_1000K,
-    // Min Target Bit Rate Type
-    A2DP_LHDCV5_MIN_BIT_RATE_64K,
-    // FeatureSupported: AR
-    false,
-    // FeatureSupported: JAS
-    false,
-    // FeatureSupported: META
-    false,
-    // FeatureSupported: Low Latency
-    true,
-    // FeatureSupported: Lossless (standard 48 KHz)
-    false,
-    // Lossless extended configurable: 24 bit-per-sample
-    false,
-    // Lossless extended configurable: 96 KHz
-    false,
-#ifdef LHDC_LOSSLESS_RAW_SUPPORT
-    // FeatureSupported: Lossless Raw mode (standard 48 KHz)
-    false,
-#endif
-};
-
-// default sink capabilities
-UNUSED_ATTR static const tA2DP_LHDCV5_CIE a2dp_lhdcv5_sink_default_caps = {
     A2DP_LHDC_VENDOR_ID,  // vendorId
     A2DP_LHDCV5_CODEC_ID, // codecId
     // Sampling Frequency
@@ -479,24 +402,9 @@ static const tA2DP_ENCODER_INTERFACE a2dp_encoder_interface_lhdcv5 = {
     a2dp_vendor_lhdcv5_set_transmit_queue_length,
 };
 
-static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_lhdcv5 = {
-    a2dp_vendor_lhdcv5_decoder_init,
-    a2dp_vendor_lhdcv5_decoder_cleanup,
-    a2dp_vendor_lhdcv5_decoder_decode_packet,
-    a2dp_vendor_lhdcv5_decoder_start,
-    a2dp_vendor_lhdcv5_decoder_suspend,
-    a2dp_vendor_lhdcv5_decoder_configure,
-};
-
-UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityLhdcV5(
-    const tA2DP_LHDCV5_CIE* p_cap, const uint8_t* p_codec_info,
-    bool is_capability);
-
-
 // check if target version is supported right now
-static bool is_codec_version_supported(uint8_t version, bool is_source) {
-  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps =
-      (is_source) ? &a2dp_lhdcv5_source_caps : &a2dp_lhdcv5_sink_caps;
+static bool is_codec_version_supported(uint8_t version) {
+  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps = &a2dp_lhdcv5_source_caps;
 
   if ((version & p_a2dp_lhdcv5_caps->version) != A2DP_LHDCV5_VER_NS) {
     return true;
@@ -640,7 +548,6 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
   uint8_t media_type;
   tA2DP_CODEC_TYPE codec_type;
   const uint8_t* tmpInfo = p_codec_info;
-  const uint8_t* p_codec_Info_save = p_codec_info;
 
   if (p_ie == nullptr || p_codec_info == nullptr) {
     log::error( ": nullptr input");
@@ -708,7 +615,7 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
     log::error( ": invalid version 0x{:02x}",  p_ie->version);
     return A2DP_WRONG_CODEC;
   } else {
-    if (!is_codec_version_supported(p_ie->version, is_source)) {
+    if (!is_codec_version_supported(p_ie->version)) {
       log::error( ": unsupported version 0x{:02x}",  p_ie->version);
       return A2DP_WRONG_CODEC;
     }
@@ -772,15 +679,6 @@ static tA2DP_STATUS A2DP_ParseInfoLhdcV5(tA2DP_LHDCV5_CIE* p_ie,
       -1);
 #endif
 
-  //save decoder needed parameters
-#if 1
-  if (!is_source) {
-    if (!a2dp_lhdcv5_decoder_save_codec_info(p_codec_Info_save)) {
-      log::info( ": save decoder parameters error");
-    }
-  }
-#endif
-
   return A2DP_SUCCESS;
 }
 
@@ -790,76 +688,11 @@ bool A2DP_IsVendorSourceCodecValidLhdcV5(const uint8_t* p_codec_info) {
   return (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, false, IS_SRC) == A2DP_SUCCESS) ||
       (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, true, IS_SRC) == A2DP_SUCCESS);
 }
-bool A2DP_IsVendorSinkCodecValidLhdcV5(const uint8_t* p_codec_info) {
-  tA2DP_LHDCV5_CIE cfg_cie;
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, false, IS_SNK) == A2DP_SUCCESS) ||
-      (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, true, IS_SNK) == A2DP_SUCCESS);
-}
-
 bool A2DP_IsVendorPeerSinkCodecValidLhdcV5(const uint8_t* p_codec_info) {
   tA2DP_LHDCV5_CIE cfg_cie;
   /* Use a liberal check when parsing the codec info */
   return (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, false, IS_SRC) == A2DP_SUCCESS) ||
       (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, true, IS_SRC) == A2DP_SUCCESS);
-}
-bool A2DP_IsVendorPeerSourceCodecValidLhdcV5(const uint8_t* p_codec_info) {
-  tA2DP_LHDCV5_CIE cfg_cie;
-  /* Use a liberal check when parsing the codec info */
-  return (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, false, IS_SNK) == A2DP_SUCCESS) ||
-      (A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, true, IS_SNK) == A2DP_SUCCESS);
-}
-
-// NOTE: Should be done only for local Sink codec
-bool A2DP_IsVendorSinkCodecSupportedLhdcV5(const uint8_t* p_codec_info) {
-  return (A2DP_CodecInfoMatchesCapabilityLhdcV5(&a2dp_lhdcv5_sink_caps, p_codec_info,
-      false) == A2DP_SUCCESS);
-}
-// NOTE: Should be done only for local Sink codec
-bool A2DP_IsPeerSourceCodecSupportedLhdcV5(const uint8_t* p_codec_info) {
-  return (A2DP_CodecInfoMatchesCapabilityLhdcV5(&a2dp_lhdcv5_sink_caps, p_codec_info,
-      true) == A2DP_SUCCESS);
-}
-
-// Checks whether A2DP LHDC codec configuration matches with a device's codec
-// capabilities.
-//  |p_cap| is the LHDC local codec capabilities.
-//  |p_codec_info| is peer's codec capabilities acting as an A2DP source.
-// If |is_capability| is true, the byte sequence is codec capabilities,
-// otherwise is codec configuration.
-// Returns A2DP_SUCCESS if the codec configuration matches with capabilities,
-// otherwise the corresponding A2DP error status code.
-static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityLhdcV5(
-    const tA2DP_LHDCV5_CIE* p_cap, const uint8_t* p_codec_info, bool is_capability) {
-  tA2DP_STATUS status;
-  tA2DP_LHDCV5_CIE cfg_cie;
-
-  if (p_cap == nullptr || p_codec_info == nullptr) {
-    log::error( ": nullptr input");
-    return A2DP_INVALID_PARAMS;
-  }
-
-  // parse configuration
-  status = A2DP_ParseInfoLhdcV5(&cfg_cie, p_codec_info, is_capability, IS_SNK);
-  if (status != A2DP_SUCCESS) {
-    log::error( ": parsing failed {}",  status);
-    return status;
-  }
-
-  // verify that each parameter is in range
-  log::info( ": FREQ peer: 0x{:02x}, capability 0x{:02x}",
-      cfg_cie.sampleRate, p_cap->sampleRate);
-
-  log::info( ": BIT_FMT peer: 0x{:02x}, capability 0x{:02x}",
-      cfg_cie.bitsPerSample, p_cap->bitsPerSample);
-
-  // sampling frequency
-  if ((cfg_cie.sampleRate & p_cap->sampleRate) == 0) return A2DP_NS_SAMP_FREQ;
-
-  // bits per sample
-  if ((cfg_cie.bitsPerSample & p_cap->bitsPerSample) == 0) return A2DP_NS_BIT_RATE;
-
-  return A2DP_SUCCESS;
 }
 
 bool A2DP_VendorUsesRtpHeaderLhdcV5(UNUSED_ATTR bool content_protection_enabled,
@@ -1064,35 +897,6 @@ int A2DP_VendorGetTrackChannelCountLhdcV5(const uint8_t* p_codec_info) {
     return 2;
   case A2DP_LHDCV5_CHANNEL_MODE_STEREO:
     return 2;
-  }
-
-  return -1;
-}
-
-int A2DP_VendorGetSinkTrackChannelTypeLhdcV5(const uint8_t* p_codec_info) {
-  tA2DP_LHDCV5_CIE lhdc_cie;
-  tA2DP_STATUS a2dp_status;
-
-  if (p_codec_info == nullptr) {
-    log::error( ": nullptr input");
-    return -1;
-  }
-
-  // Check whether the codec info contains valid data
-  a2dp_status = A2DP_ParseInfoLhdcV5(&lhdc_cie, p_codec_info, false, IS_SNK);
-  if (a2dp_status != A2DP_SUCCESS) {
-    log::error( ": cannot decode codec information: {}", 
-        a2dp_status);
-    return -1;
-  }
-
-  switch (lhdc_cie.channelMode) {
-  case A2DP_LHDCV5_CHANNEL_MODE_MONO:
-    return 1;
-  case A2DP_LHDCV5_CHANNEL_MODE_DUAL:
-    return 3;
-  case A2DP_LHDCV5_CHANNEL_MODE_STEREO:
-    return 3;
   }
 
   return -1;
@@ -1314,18 +1118,6 @@ const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLhdcV5(
   return &a2dp_encoder_interface_lhdcv5;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceLhdcV5(
-    const uint8_t* p_codec_info) {
-  if (p_codec_info == nullptr) {
-    log::error( ": nullptr input");
-    return NULL;
-  }
-
-  if (!A2DP_IsVendorSinkCodecValidLhdcV5(p_codec_info)) return NULL;
-
-  return &a2dp_decoder_interface_lhdcv5;
-}
-
 bool A2DP_VendorAdjustCodecLhdcV5(uint8_t* p_codec_info) {
   tA2DP_LHDCV5_CIE cfg_cie;
   if (p_codec_info == nullptr) {
@@ -1345,14 +1137,7 @@ btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexLhdcV5(
   return BTAV_A2DP_CODEC_INDEX_SOURCE_LHDCV5;
 }
 
-btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexLhdcV5(
-    UNUSED_ATTR const uint8_t* p_codec_info) {
-  return BTAV_A2DP_CODEC_INDEX_SINK_LHDCV5;
-}
-
 const char* A2DP_VendorCodecIndexStrLhdcV5(void) { return "LHDC V5"; }
-
-const char* A2DP_VendorCodecIndexStrLhdcV5Sink(void) { return "LHDC V5 SINK"; }
 
 bool A2DP_VendorInitCodecConfigLhdcV5(AvdtpSepConfig* p_cfg) {
   if (p_cfg == nullptr) {
@@ -1372,20 +1157,6 @@ bool A2DP_VendorInitCodecConfigLhdcV5(AvdtpSepConfig* p_cfg) {
   UINT16_TO_STREAM(p, AVDT_CP_SCMS_T_ID);
   p_cfg->num_protect = 1;
 #endif
-
-  return true;
-}
-
-bool A2DP_VendorInitCodecConfigLhdcV5Sink(AvdtpSepConfig* p_cfg) {
-  if (p_cfg == nullptr) {
-    log::error( ": nullptr input");
-    return false;
-  }
-
-  if (A2DP_BuildInfoLhdcV5(AVDT_MEDIA_TYPE_AUDIO, &a2dp_lhdcv5_sink_caps,
-      p_cfg->codec_info) != A2DP_SUCCESS) {
-    return false;
-  }
 
   return true;
 }
@@ -1431,7 +1202,7 @@ A2dpCodecConfigLhdcV5Source::A2dpCodecConfigLhdcV5Source(
     btav_a2dp_codec_priority_t codec_priority)
 : A2dpCodecConfigLhdcV5Base(BTAV_A2DP_CODEC_INDEX_SOURCE_LHDCV5,
     A2DP_VendorCodecIndexStrLhdcV5(),
-    codec_priority, true) {
+    codec_priority) {
 
   // Compute the local capability
   codec_local_capability_.sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_NONE;
@@ -1818,8 +1589,7 @@ bool A2dpCodecConfigLhdcV5Base::setCodecConfig(const uint8_t* p_peer_codec_info,
   uint8_t bitRateQmode = 0;
   tA2DP_STATUS status;
 
-  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps =
-      (is_source_) ? &a2dp_lhdcv5_source_caps : &a2dp_lhdcv5_sink_caps;
+  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps = &a2dp_lhdcv5_source_caps;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_config = codec_config_;
@@ -2781,8 +2551,7 @@ bool A2dpCodecConfigLhdcV5Base::setPeerCodecCapabilities(
   uint8_t sampleRate;
   uint8_t bits_per_sample;
   tA2DP_STATUS status;
-  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps =
-      (is_source_) ? &a2dp_lhdcv5_source_caps : &a2dp_lhdcv5_sink_caps;
+  const tA2DP_LHDCV5_CIE* p_a2dp_lhdcv5_caps = &a2dp_lhdcv5_source_caps;
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_selectable_capability =
@@ -2849,58 +2618,6 @@ bool A2dpCodecConfigLhdcV5Base::setPeerCodecCapabilities(
       sizeof(ota_codec_peer_capability_));
   return false;
 }
-
-////////
-//    class implementation for LHDC V5 Sink
-////////
-A2dpCodecConfigLhdcV5Sink::A2dpCodecConfigLhdcV5Sink(
-    btav_a2dp_codec_priority_t codec_priority)
-: A2dpCodecConfigLhdcV5Base(BTAV_A2DP_CODEC_INDEX_SINK_LHDCV5,
-    A2DP_VendorCodecIndexStrLhdcV5Sink(),
-    codec_priority, false) {}
-
-A2dpCodecConfigLhdcV5Sink::~A2dpCodecConfigLhdcV5Sink() {}
-
-bool A2dpCodecConfigLhdcV5Sink::init() {
-  if (!isValid()) return false;
-
-  // Load the decoder
-  if (!A2DP_VendorLoadDecoderLhdcV5()) {
-    log::error( ": cannot load the decoder");
-    return false;
-  }
-
-  return true;
-}
-
-bool A2dpCodecConfigLhdcV5Sink::useRtpHeaderMarkerBit() const {
-  // TODO: This method applies only to Source codecs
-  return false;
-}
-
-#if 0
-bool A2dpCodecConfigLhdcV5Sink::updateEncoderUserConfig(
-    UNUSED_ATTR const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-    UNUSED_ATTR bool* p_restart_input, UNUSED_ATTR bool* p_restart_output,
-    UNUSED_ATTR bool* p_config_updated) {
-  // TODO: This method applies only to Source codecs
-  return false;
-}
-#endif
-
-#if 0
-uint64_t A2dpCodecConfigLhdcV5Sink::encoderIntervalMs() const {
-  // TODO: This method applies only to Source codecs
-  return 0;
-}
-#endif
-
-#if 0
-int A2dpCodecConfigLhdcV5Sink::getEffectiveMtu() const {
-  // TODO: This method applies only to Source codecs
-  return 0;
-}
-#endif
 
 ////////
 //    APIs for calling from encoder/decoder module - START

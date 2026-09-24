@@ -26,8 +26,6 @@
 
 #include "a2dp_vendor_lhdcv3.h"
 
-#include "a2dp_vendor_lhdcv3_dec.h"
-
 #include <string.h>
 
 #include <base/logging.h>
