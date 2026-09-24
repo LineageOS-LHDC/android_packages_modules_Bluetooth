@@ -57,14 +57,12 @@ public final class BluetoothCodecType implements Parcelable {
     /** LDAC codec identifier. See {@link BluetoothCodecType#getCodecId}. */
     public static final long CODEC_ID_LDAC = 0x00aa012dff;
 
-    /** LHDCV3 codec identifier. See {@link BluetoothCodecType#getCodecId}. */
-    public static final long CODEC_ID_LHDCV3 = 0x334c3a05fL;
-
-    /** LHDCV5 codec identifier. See {@link BluetoothCodecType#getCodecId}. */
-    public static final long CODEC_ID_LHDCV5 = 0x354c3a05ffL;
-
     /** Opus codec identifier. See {@link BluetoothCodecType#getCodecId}. */
     public static final long CODEC_ID_OPUS = 0x000100e0ff;
+
+    /** LHDCV3 codec identifier. See {@link BluetoothCodecType#getCodecId}. */
+    @FlaggedApi(Flags.FLAG_A2DP_LHDC_API)
+    public static final long CODEC_ID_LHDCV3 = 0x4c33_053a_ffL;
 
     /** LHDC codec identifier. See {@link BluetoothCodecType#getCodecId}. */
     @FlaggedApi(Flags.FLAG_A2DP_LHDC_API)

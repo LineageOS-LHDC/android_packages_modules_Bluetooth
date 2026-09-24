@@ -56,11 +56,14 @@ static constexpr uint16_t kAptxCompanyId = 0x004F;
 static constexpr uint16_t kAptxHdCompanyId = 0x00D7;
 static constexpr uint16_t kLdacCompanyId = 0x012D;
 static constexpr uint16_t kOpusCompanyId = 0x00E0;
+static constexpr uint16_t kLhdcCompanyId = 0x053A;
 
 static constexpr uint16_t kAptxCodecId = 0x0001;
 static constexpr uint16_t kAptxHdCodecId = 0x0024;
 static constexpr uint16_t kLdacCodecId = 0x00AA;
 static constexpr uint16_t kOpusCodecId = 0x0001;
+static constexpr uint16_t kLhdcV3CodecId = 0x4C33;
+static constexpr uint16_t kLhdcV5CodecId = 0x4C35;
 
 /// Standardized codec identifiers.
 ///
@@ -86,6 +89,8 @@ enum class CodecId : uint64_t {
   APTX_HD = VendorCodecId(kAptxHdCompanyId, kAptxHdCodecId),
   LDAC = VendorCodecId(kLdacCompanyId, kLdacCodecId),
   OPUS = VendorCodecId(kOpusCompanyId, kOpusCodecId),
+  LHDCV3 = VendorCodecId(kLhdcCompanyId, kLhdcV3CodecId),
+  LHDCV5 = VendorCodecId(kLhdcCompanyId, kLhdcV5CodecId),
 };
 
 /// Parse the standardized codec identifier from the Media Codec Capabilities.
@@ -169,11 +174,6 @@ enum tA2DP_STATUS : uint8_t {
   A2DP_INVALID_CODEC_PARAMETER = 0xE2,
   A2DP_NOT_SUPPORTED_CODEC_PARAMETER = 0xE3,
 
-// Savitech LHDC (5.2.5ST, AOSP15 layout)
-enum : uint64_t {
-  A2DP_CODEC_ID_LHDCV3 = 0x334c3a05ff,
-  A2DP_CODEC_ID_LHDCV5 = 0x354c3a05ff,
-};
 };
 
 namespace std {
