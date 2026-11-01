@@ -624,7 +624,7 @@ void a2dp_vendor_lhdcv3_feeding_flush(void) {
 }
 
 uint64_t a2dp_vendor_lhdcv3_get_encoder_interval_ms(void) {
-  log::info( ": A2DP_LHDC_ENCODER_INTERVAL_MS {}",
+  log::verbose( ": A2DP_LHDC_ENCODER_INTERVAL_MS {}",
                a2dp_lhdc_encoder_cb.lhdc_encoder_params.isLLEnabled ? A2DP_LHDC_ENCODER_SHORT_INTERVAL_MS : A2DP_LHDC_ENCODER_INTERVAL_MS);
   if (a2dp_lhdc_encoder_cb.lhdc_encoder_params.isLLEnabled){
       return A2DP_LHDC_ENCODER_SHORT_INTERVAL_MS;
@@ -642,7 +642,7 @@ void a2dp_vendor_lhdcv3_send_frames(uint64_t timestamp_us) {
   uint8_t nb_iterations = 0;
 
   a2dp_lhdcv3_get_num_frame_iteration(&nb_iterations, &nb_frame, timestamp_us);
-  log::info( ": Sending {} frames per iteration, {} iterations",
+  log::verbose( ": Sending {} frames per iteration, {} iterations",
                nb_frame, nb_iterations);
 
   if (nb_frame == 0) return;
@@ -675,7 +675,7 @@ static void a2dp_lhdcv3_get_num_frame_iteration(uint8_t* num_of_iterations,
   pcm_bytes_per_frame = pcm_bytes_per_frame *
   a2dp_lhdc_encoder_cb.feeding_params.channel_count *
   a2dp_lhdc_encoder_cb.feeding_params.bits_per_sample / 8;
-  log::info( ": pcm_bytes_per_frame {}",  pcm_bytes_per_frame);
+  log::verbose( ": pcm_bytes_per_frame {}",  pcm_bytes_per_frame);
 
   int encoder_interval = a2dp_vendor_lhdcv3_get_encoder_interval_ms();
   uint32_t us_this_tick = encoder_interval * 1000;
@@ -695,7 +695,7 @@ static void a2dp_lhdcv3_get_num_frame_iteration(uint8_t* num_of_iterations,
       result * pcm_bytes_per_frame;
   nof = result;
 
-  log::info( ": effective num of frames {}, iterations {}",  nof, noi);
+  log::verbose( ": effective num of frames {}, iterations {}",  nof, noi);
 
   *num_of_frames = nof;
   *num_of_iterations = noi;
@@ -809,7 +809,7 @@ static void a2dp_lhdcV3_encode_frames(uint8_t nb_frame){
         all_send_bytes += written;
         nb_frame--;
         written_frame += out_frames;  // added a frame to the buffer
-        log::info (": nb_frame:{}, written:{}, out_frames:{}",  nb_frame, written, out_frames);
+        log::verbose(": nb_frame:{}, written:{}, out_frames:{}",  nb_frame, written, out_frames);
 
       }else{
         log::info ( ": underflow {}",  nb_frame);
@@ -833,19 +833,19 @@ static void a2dp_lhdcV3_encode_frames(uint8_t nb_frame){
       p_buf->layer_specific |= ( latency | ( written_frame << A2DP_LHDC_HDR_NUM_SHIFT));
 
       *( ( uint32_t*)( p_buf + 1)) = a2dp_lhdc_encoder_cb.timestamp;
-      log::info ( ": Timestamp ({})",  a2dp_lhdc_encoder_cb.timestamp);
+      log::verbose( ": Timestamp ({})",  a2dp_lhdc_encoder_cb.timestamp);
 
       a2dp_lhdc_encoder_cb.timestamp += ( written_frame * samples_per_frame);
 
       uint8_t done_nb_frame = remain_nb_frame - nb_frame;
       remain_nb_frame = nb_frame;
-      log::info( ": nb_frame:{}, remain_nb_frame:{}, done_nb_frame:{}",  nb_frame, remain_nb_frame, done_nb_frame);
+      log::verbose( ": nb_frame:{}, remain_nb_frame:{}, done_nb_frame:{}",  nb_frame, remain_nb_frame, done_nb_frame);
 
       mtu_usage += ((float)p_buf->len) / max_mtu_len;
       mtu_usage_cnt++;
 
-      log::info ( ": Read bytes({})",  a2dp_lhdc_encoder_cb.bytes_read);
-      log::info ( ": Send Frame({}), length({})",  written_frame, p_buf->len);
+      log::verbose( ": Read bytes({})",  a2dp_lhdc_encoder_cb.bytes_read);
+      log::verbose( ": Send Frame({}), length({})",  written_frame, p_buf->len);
       bytes_read = a2dp_lhdc_encoder_cb.bytes_read;
       a2dp_lhdc_encoder_cb.bytes_read = 0;
 
@@ -857,7 +857,7 @@ static void a2dp_lhdcV3_encode_frames(uint8_t nb_frame){
       // enough data to write to. That data is accumulated internally by
       // the codec and included in the next iteration. Therefore, here we
       // don't increment the "media_read_total_dropped_packets" counter.
-      log::info ( ": free buffer len({})",  p_buf->len);
+      log::verbose( ": free buffer len({})",  p_buf->len);
       osi_free(p_buf);
     }
   }
@@ -910,7 +910,7 @@ static void a2dp_lhdcV3_encode_frames(uint8_t nb_frame){
     }
     mcpsStat_enc_frm_per_sec_lhdcv3 = mcpsStat_all_enc_frm_lhdcv3;
 #endif
-    log::info (": Current data rate about {} kbps, packet usage {}%%", 
+    log::debug(": Current data rate about {} kbps, packet usage {}%%", 
         (all_send_bytes * 8) / 1000, (mtu_usage * 100)/mtu_usage_cnt);
       all_send_bytes = 0;
       mtu_usage_cnt = 0;
@@ -935,7 +935,7 @@ static bool a2dp_lhdcv3_read_feeding(uint8_t* read_buffer, uint32_t *bytes_read)
   /* Read Data from UIPC channel */
   uint32_t nb_byte_read =
       a2dp_lhdc_encoder_cb.read_callback(read_buffer, read_size);
-  log::info( ": want to read size {}, read byte number {}",
+  log::verbose( ": want to read size {}, read byte number {}",
                      read_size, nb_byte_read);
   if ((nb_byte_read % bytes_per_sample) != 0) {
 	  log::info( ": PCM data not alignment. The audio sample is shfit {} bytes.", (nb_byte_read % bytes_per_sample));
